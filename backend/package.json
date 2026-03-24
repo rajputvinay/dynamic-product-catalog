@@ -1,0 +1,14 @@
+{
+  "name": "dynamic-product-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^9.3.4",
+    "dotenv": "^17.3.1",
+    "mongodb": "^7.1.0"
+  }
+}
