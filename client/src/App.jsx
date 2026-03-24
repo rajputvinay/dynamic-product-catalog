@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   createCategory,
   createProduct,
@@ -15,7 +16,7 @@ import NewCategoryPage from "./routes/categories/NewCategoryPage.jsx";
 import ProductsPage from "./routes/products/ProductsPage.jsx";
 import NewProductPage from "./routes/products/NewProductPage.jsx";
 import { normalizeCategoryDraft } from "./lib/catalog.js";
-import { normalizePath, routes } from "./lib/routes.js";
+import { routes } from "./lib/routes.js";
 
 const DEBOUNCE_MS = 300;
 const CATEGORY_PAGE_SIZE = 10;
@@ -52,7 +53,9 @@ const emptyProductDraft = {
 };
 
 export default function App() {
-  const [pathname, setPathname] = useState(() => normalizePath(window.location.pathname));
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pathname = location.pathname;
   const [categories, setCategories] = useState([]);
   const [categorySearch, setCategorySearch] = useState("");
   const [categorySchemaFilter, setCategorySchemaFilter] = useState("");
@@ -85,20 +88,6 @@ export default function App() {
   const debouncedCategorySchemaFilter = useDebouncedValue(categorySchemaFilter, DEBOUNCE_MS);
   const debouncedProductSearch = useDebouncedValue(productSearch, DEBOUNCE_MS);
   const debouncedSelectedProductCategory = useDebouncedValue(selectedProductCategory, DEBOUNCE_MS);
-
-  useEffect(() => {
-    const syncPath = () => {
-      const normalized = normalizePath(window.location.pathname);
-      if (window.location.pathname !== normalized) {
-        window.history.replaceState({}, "", normalized);
-      }
-      setPathname(normalized);
-    };
-
-    syncPath();
-    window.addEventListener("popstate", syncPath);
-    return () => window.removeEventListener("popstate", syncPath);
-  }, []);
 
   useEffect(() => {
     setCategoryPage(1);
@@ -244,16 +233,6 @@ export default function App() {
     setError(cause.message || "Unexpected error.");
   }
 
-  function navigate(nextPath) {
-    const resolved = normalizePath(nextPath);
-    if (resolved === pathname) {
-      return;
-    }
-
-    window.history.pushState({}, "", resolved);
-    setPathname(resolved);
-  }
-
   const selectedProductCategorySchema = useMemo(
     () => categories.find((category) => category.id === productDraft.categoryId),
     [categories, productDraft.categoryId]
@@ -278,116 +257,131 @@ export default function App() {
           <p className="eyebrow">Navigation</p>
           <h2>Admin Pages</h2>
           <nav className="sidebar-nav">
-            <button
-              type="button"
+            <NavLink
+              to={routes.categories}
               className={categoryNavActive ? "sidebar-link active" : "sidebar-link"}
-              onClick={() => navigate(routes.categories)}
             >
               Category
-            </button>
-            <button
-              type="button"
+            </NavLink>
+            <NavLink
+              to={routes.products}
               className={productNavActive ? "sidebar-link active" : "sidebar-link"}
-              onClick={() => navigate(routes.products)}
             >
               Product
-            </button>
+            </NavLink>
           </nav>
         </aside>
 
         <main className="workspace-main">
-          {isCategoryPage ? (
-            <CategoriesPage
-              categories={categories}
-              search={categorySearch}
-              schemaFilter={categorySchemaFilter}
-              pagination={categoryPagination}
-              onSearchChange={setCategorySearch}
-              onSchemaFilterChange={setCategorySchemaFilter}
-              onPageChange={setCategoryPage}
-              onAddCategory={() => {
-                setEditingCategoryId("");
-                setCategoryDraft(emptyCategoryDraft);
-                navigate(routes.addCategory);
-              }}
-              onAddProduct={() => navigate(routes.addProduct)}
-              onViewCategory={handleViewCategory}
-              onEditCategory={handleStartEditCategory}
+          <Routes>
+            <Route
+              path={routes.categories}
+              element={
+                <CategoriesPage
+                  categories={categories}
+                  search={categorySearch}
+                  schemaFilter={categorySchemaFilter}
+                  pagination={categoryPagination}
+                  onSearchChange={setCategorySearch}
+                  onSchemaFilterChange={setCategorySchemaFilter}
+                  onPageChange={setCategoryPage}
+                  onAddCategory={() => {
+                    setEditingCategoryId("");
+                    setCategoryDraft(emptyCategoryDraft);
+                    navigate(routes.addCategory);
+                  }}
+                  onAddProduct={() => navigate(routes.addProduct)}
+                  onViewCategory={handleViewCategory}
+                  onEditCategory={handleStartEditCategory}
+                />
+              }
             />
-          ) : null}
-
-          {isAddCategoryPage ? (
-            <NewCategoryPage
-              draft={categoryDraft}
-              onChange={setCategoryDraft}
-              onSubmit={handleCreateCategory}
-              onBack={() => navigate(routes.categories)}
-              heading="Add Category"
-              description="Create a new category schema with dynamic attributes and content fields."
-              submitLabel="Save Category Schema"
+            <Route
+              path={routes.addCategory}
+              element={
+                <NewCategoryPage
+                  draft={categoryDraft}
+                  onChange={setCategoryDraft}
+                  onSubmit={handleCreateCategory}
+                  onBack={() => navigate(routes.categories)}
+                  heading="Add Category"
+                  description="Create a new category schema with dynamic attributes and content fields."
+                  submitLabel="Save Category Schema"
+                />
+              }
             />
-          ) : null}
-
-          {isEditCategoryPage ? (
-            <NewCategoryPage
-              draft={categoryDraft}
-              onChange={setCategoryDraft}
-              onSubmit={handleUpdateCategory}
-              onBack={() => navigate(routes.categories)}
-              heading="Edit Category"
-              description="Update the category schema and metadata for this catalog type."
-              submitLabel="Update Category"
+            <Route
+              path={routes.editCategory}
+              element={
+                <NewCategoryPage
+                  draft={categoryDraft}
+                  onChange={setCategoryDraft}
+                  onSubmit={handleUpdateCategory}
+                  onBack={() => navigate(routes.categories)}
+                  heading="Edit Category"
+                  description="Update the category schema and metadata for this catalog type."
+                  submitLabel="Update Category"
+                />
+              }
             />
-          ) : null}
-
-          {isProductsPage ? (
-            <ProductsPage
-              categories={categories}
-              products={productItems}
-              search={productSearch}
-              selectedCategoryId={selectedProductCategory}
-              pagination={productPagination}
-              onSearchChange={setProductSearch}
-              onCategoryChange={setSelectedProductCategory}
-              onPageChange={setProductPage}
-              onAddProduct={() => {
-                setEditingProductId("");
-                setProductDraft(emptyProductDraft);
-                navigate(routes.addProduct);
-              }}
-              onAddCategory={() => navigate(routes.addCategory)}
-              onViewProduct={(productId) => handleViewProduct(productId).catch(handleError)}
-              onEditProduct={handleStartEditProduct}
+            <Route
+              path={routes.products}
+              element={
+                <ProductsPage
+                  categories={categories}
+                  products={productItems}
+                  search={productSearch}
+                  selectedCategoryId={selectedProductCategory}
+                  pagination={productPagination}
+                  onSearchChange={setProductSearch}
+                  onCategoryChange={setSelectedProductCategory}
+                  onPageChange={setProductPage}
+                  onAddProduct={() => {
+                    setEditingProductId("");
+                    setProductDraft(emptyProductDraft);
+                    navigate(routes.addProduct);
+                  }}
+                  onAddCategory={() => navigate(routes.addCategory)}
+                  onViewProduct={(productId) => handleViewProduct(productId).catch(handleError)}
+                  onEditProduct={handleStartEditProduct}
+                />
+              }
             />
-          ) : null}
-
-          {isAddProductPage ? (
-            <NewProductPage
-              categories={categories}
-              selectedCategory={selectedProductCategorySchema}
-              draft={productDraft}
-              onChange={setProductDraft}
-              onSubmit={handleCreateProduct}
-              onBack={() => navigate(routes.products)}
-              heading="Add Product"
-              description="Create a category-driven product without hardcoded fields."
-              submitLabel="Create Product"
+            <Route
+              path={routes.addProduct}
+              element={
+                <NewProductPage
+                  categories={categories}
+                  selectedCategory={selectedProductCategorySchema}
+                  draft={productDraft}
+                  onChange={setProductDraft}
+                  onSubmit={handleCreateProduct}
+                  onBack={() => navigate(routes.products)}
+                  heading="Add Product"
+                  description="Create a category-driven product without hardcoded fields."
+                  submitLabel="Create Product"
+                />
+              }
             />
-          ) : null}
-
-          {isEditProductPage ? (
-            <NewProductPage
-              categories={categories}
-              selectedCategory={selectedProductCategorySchema}
-              draft={productDraft}
-              onChange={setProductDraft}
-              onSubmit={handleUpdateProduct}
-              onBack={() => navigate(routes.products)}
-              heading="Edit Product"
-              description="Update product content, attributes, and category-driven metadata."
-              submitLabel="Update Product"
+            <Route
+              path={routes.editProduct}
+              element={
+                <NewProductPage
+                  categories={categories}
+                  selectedCategory={selectedProductCategorySchema}
+                  draft={productDraft}
+                  onChange={setProductDraft}
+                  onSubmit={handleUpdateProduct}
+                  onBack={() => navigate(routes.products)}
+                  heading="Edit Product"
+                  description="Update product content, attributes, and category-driven metadata."
+                  submitLabel="Update Product"
+                />
+              }
             />
-          ) : null}
+            <Route path="/" element={<Navigate to={routes.categories} replace />} />
+            <Route path="*" element={<Navigate to={routes.categories} replace />} />
+          </Routes>
         </main>
       </div>
 

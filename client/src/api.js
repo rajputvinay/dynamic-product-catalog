@@ -1,11 +1,55 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const ACCESS_TOKEN_KEY = "accessToken";
+
 const api = axios.create({
-  baseURL: "http://localhost:4000/api",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json"
   }
 });
+
+api.interceptors.request.use(
+  (config) => {
+    const token = getAccessToken();
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      return Promise.reject(new Error(error.response.data?.message || "Request failed."));
+    }
+
+    return Promise.reject(new Error("Network request failed. Check whether the backend server is running."));
+  }
+);
+
+export function getAccessToken() {
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export function setAccessToken(token) {
+  if (!token) {
+    clearAccessToken();
+    return;
+  }
+
+  window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+}
+
+export function clearAccessToken() {
+  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
 
 export async function fetchCategories({ q, schemaFilter, page, pageSize } = {}) {
   return request({
@@ -67,16 +111,8 @@ export async function fetchProduct(productId) {
 }
 
 async function request(config) {
-  try {
-    const response = await api.request(config);
-    return response.data;
-  } catch (error) {
-    if (error.response) {
-      throw new Error(error.response.data?.message || "Request failed.");
-    }
-
-    throw new Error("Network request failed. Check whether the backend server is running.");
-  }
+  const response = await api.request(config);
+  return response.data;
 }
 
 function buildParams(values) {
