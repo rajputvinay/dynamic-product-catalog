@@ -117,10 +117,15 @@ select {
 }
 
 .sidebar-link {
+  display: block;
   width: 100%;
+  padding: 12px 14px;
   text-align: left;
+  text-decoration: none;
+  border-radius: 10px;
   background: rgba(187, 90, 60, 0.1);
   color: var(--text);
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .sidebar-link.active {
